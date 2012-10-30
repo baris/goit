@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -26,6 +24,7 @@ type GitRepo struct {
 	Name string
 	Path string
 	Type GitRepoType
+	LatestCommit *GitCommitInfo
 }
 
 type GitRepos []*GitRepo
@@ -37,7 +36,7 @@ func (i *GitCommitInfo) String() string {
 
 
 // sort.Interface for array type
-func (r GitRepos) Less(i, j int) bool { return r[i].Name < r[j].Name }
+func (r GitRepos) Less(i, j int) bool { return r[i].RelativePath() < r[j].RelativePath() }
 func (r GitRepos) Len() int { return len(r) }
 func (r GitRepos) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
 
@@ -47,13 +46,27 @@ func (r *GitRepo) String() string {
 }
 
 
-func (r *GitRepo) LatestCommit() (info *GitCommitInfo, ok bool) {
-	curDir, _ := os.Getwd()
-	os.Chdir(r.Path)
-	out, err := exec.Command("git", "log", "-1", "--format=%h#%ae#%ar").Output()
-	os.Chdir(curDir)
+func (r *GitRepo) RelativePath() string {
+	gitPath := r.Path[len(BaseGitDir):]
+	if gitPath[0] == '/' {
+		gitPath = gitPath[1:]
+	}
+	return gitPath
+}
+
+
+func (r *GitRepo) GitwebUrl() string {
+	return "https://" + GitwebServerName + "?p=" + r.RelativePath()
+}
+
+
+func (r *GitRepo) GetLatestCommit() (info *GitCommitInfo, ok bool) {
+	gitDir := r.Path
+	if r.Type == NonBare {
+		gitDir += "/.git"
+	}
+	out, err := exec.Command("git", "--git-dir", gitDir, "log", "-1", "--format=%h#%ae#%ar").Output()
 	if err != nil {
-		fmt.Println(out)
 		return nil, false
 	}
 	info = new(GitCommitInfo)
@@ -95,5 +108,10 @@ func NewRepo(path string) (repo *GitRepo, ok bool) {
 	repo.Type = repoType
 	repo.Path = path
 	repo.Name = filepath.Base(path)
+	repo.LatestCommit = nil
+	info, ok := repo.GetLatestCommit()
+	if ok {
+		repo.LatestCommit = info
+	}
 	return repo, true
 }

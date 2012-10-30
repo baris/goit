@@ -10,24 +10,13 @@ import (
 	"sort"
 )
 
+var BaseGitDir string
+var GitwebServerName string
+
 var port string
 var runServer bool
-var baseGitDir string
-var gitwebServerName string
 var repositories map[string] *GitRepo // Repo.Name:Repo
 
-
-func relativeGitPath(path string) string {
-	gitPath := path[len(baseGitDir):]
-	if gitPath[0] == '/' {
-		gitPath = gitPath[1:]
-	}
-	return gitPath
-}
-
-func gitwebUrl(path string) string {
-	return "https://" + gitwebServerName + "?p=" + relativeGitPath(path)
-}
 
 func walk(path string, controlChannel chan bool) {
 	walkerChannel := make(chan bool, 100)
@@ -76,6 +65,7 @@ func findRepositories() {
 	}
 }
 
+
 func sortedRepositories() GitRepos {
 	pathList := make(GitRepos, len(repositories))
 	i := 0
@@ -87,15 +77,16 @@ func sortedRepositories() GitRepos {
 	return pathList
 }
 
+
 func handleRoot(w http.ResponseWriter, r *http.Request) {
 	repositories = make(map[string] *GitRepo)
 	findRepositories()
 	pathList := sortedRepositories()
 	fmt.Fprintf(w, "<html><body><table>")
 	for _, repo := range pathList {
-		fmt.Fprintf(w, "<tr><td><a href='"+gitwebUrl(repo.Path)+"'>"+relativeGitPath(repo.Path)+"<a></td>")
-		info, ok := repo.LatestCommit()
-		if ok {
+		fmt.Fprintf(w, "<tr><td><a href='"+repo.GitwebUrl()+"'>"+repo.RelativePath()+"<a></td>")
+		info := repo.LatestCommit
+		if info != nil {
 			fmt.Fprintf(w, "<td>"+info.SHA+"<td>"+info.Author+"<td>"+info.Date+"</td></tr>")
 		} else {
 			fmt.Fprintf(w, "<td span=3></td></tr>")
@@ -104,22 +95,24 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "</table></body></html>")
 }
 
+
 func printRepositories() {
 	repositories = make(map[string] *GitRepo)
 	findRepositories()
 	for _, repo := range sortedRepositories() {
-		info, ok := repo.LatestCommit()
-		if ok == false {
-			fmt.Println(repo)
+		info := repo.LatestCommit
+		if info != nil {
+			fmt.Println(repo.RelativePath() + " " + info.String())
 		} else {
-			fmt.Println(repo.String() + " " + info.String())
+			fmt.Println(repo.RelativePath())
 		}
 	}
 }
 
+
 func main() {
-	flag.StringVar(&gitwebServerName, "gitwebServer", "localhost", "Gitweb server's hostname")
-	flag.StringVar(&baseGitDir, "baseGitDir", "/git", "Base Git directory on server")
+	flag.StringVar(&GitwebServerName, "gitwebServer", "localhost", "Gitweb server's hostname")
+	flag.StringVar(&BaseGitDir, "baseGitDir", "/git", "Base Git directory on server")
 	flag.BoolVar(&runServer, "runServer", false, "Run web server or just print repositories")
 	flag.StringVar(&port, "port", "8080", "Port to listen from")
 	flag.Parse()
