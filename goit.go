@@ -10,13 +10,11 @@ import (
 	"sort"
 )
 
-import "git"
-
 var port string
 var runServer bool
 var baseGitDir string
 var gitwebServerName string
-var repositories map[string] *git.GitRepo // Repo.Name:Repo
+var repositories map[string] *GitRepo // Repo.Name:Repo
 
 
 func relativeGitPath(path string) string {
@@ -35,7 +33,7 @@ func walk(path string, controlChannel chan bool) {
 	walkerChannel := make(chan bool, 100)
 	walkerCount := 0
 
-	repo, ok := GetRepo(path)
+	repo, ok := NewRepo(path)
 	if ok {
 		repositories[repo.Name] = repo
 		controlChannel <- true
@@ -65,7 +63,7 @@ func walk(path string, controlChannel chan bool) {
 }
 
 func init() {
-	repositories = make(map[string] *git.GitRepo)
+	repositories = make(map[string] *GitRepo)
 
 	flag.StringVar(&gitwebServerName, "gitwebServer", "localhost", "Gitweb server's hostname")
 	flag.StringVar(&baseGitDir, "baseGitDir", "/git", "Base Git directory on server")
@@ -92,8 +90,8 @@ func findRepositories() {
 	}
 }
 
-func sortedRepositories() git.GitRepos {
-	pathList := make(git.GitRepos, len(repositories))
+func sortedRepositories() GitRepos {
+	pathList := make(GitRepos, len(repositories))
 	i := 0
 	for _, path := range repositories {
 		pathList[i] = path
@@ -107,7 +105,7 @@ func main() {
 	curdir, _ := os.Getwd()
 	if runServer {
 		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			repositories = make(map[string] *git.GitRepo)
+			repositories = make(map[string] *GitRepo)
 			findRepositories()
 			pathList := sortedRepositories()
 			fmt.Fprintf(w, "<html><body>")

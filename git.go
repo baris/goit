@@ -1,7 +1,6 @@
-package git
+package main
 
 import (
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -68,7 +67,7 @@ func GitPathType(path string) (repoType GitRepoType, ok bool) {
 }
 
 
-func GetRepo(path string) (repo *GitRepo, ok bool) {
+func NewRepo(path string) (repo *GitRepo, ok bool) {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return nil, false
@@ -84,20 +83,4 @@ func GetRepo(path string) (repo *GitRepo, ok bool) {
 	repo.Path = path
 	repo.Name = filepath.Base(path)
 	return repo, true
-}
-
-
-// Utility functions //
-
-func exists(path string) bool {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true
-	}
-	return false
-}
-
-
-func has(path, fileOrDir string) bool {
-	return exists(filepath.Join(path, fileOrDir))
 }
