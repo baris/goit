@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -28,6 +30,12 @@ type GitRepo struct {
 
 type GitRepos []*GitRepo
 
+
+func (i *GitCommitInfo) String() string {
+	return i.SHA + ", " + i.Author + ", " + i.Date
+}
+
+
 // sort.Interface for array type
 func (r GitRepos) Less(i, j int) bool { return r[i].Name < r[j].Name }
 func (r GitRepos) Len() int { return len(r) }
@@ -40,12 +48,17 @@ func (r *GitRepo) String() string {
 
 
 func (r *GitRepo) LatestCommit() (info *GitCommitInfo, ok bool) {
-	out, err := exec.Command("git", "log", "HEAD^..HEAD", "--format='%h#%ae#%ar'").Output()
+	curDir, _ := os.Getwd()
+	os.Chdir(r.Path)
+	out, err := exec.Command("git", "log", "-1", "--format=%h#%ae#%ar").Output()
+	os.Chdir(curDir)
 	if err != nil {
+		fmt.Println(out)
 		return nil, false
 	}
 	info = new(GitCommitInfo)
-	parts := strings.Split(string(out), "#")
+	line := strings.Trim(string(out), " \n")
+	parts := strings.Split(line, "#")
 	info.SHA = parts[0]
 	info.Author = parts[1]
 	info.Date = parts[2]

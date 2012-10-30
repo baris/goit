@@ -62,20 +62,6 @@ func walk(path string, controlChannel chan bool) {
 	controlChannel <- true
 }
 
-func init() {
-	repositories = make(map[string] *GitRepo)
-
-	flag.StringVar(&gitwebServerName, "gitwebServer", "localhost", "Gitweb server's hostname")
-	flag.StringVar(&baseGitDir, "baseGitDir", "/git", "Base Git directory on server")
-	flag.BoolVar(&runServer, "runServer", false, "Run web server or just print repositories")
-	flag.StringVar(&port, "port", "8080", "Port to listen from")
-	flag.Parse()
-
-	if flag.NArg() < 1 {
-		flag.Usage()
-		os.Exit(1)
-	}
-}
 
 func findRepositories() {
 	controlChannel := make(chan bool)
@@ -101,25 +87,54 @@ func sortedRepositories() GitRepos {
 	return pathList
 }
 
+func handleRoot(w http.ResponseWriter, r *http.Request) {
+	repositories = make(map[string] *GitRepo)
+	findRepositories()
+	pathList := sortedRepositories()
+	fmt.Fprintf(w, "<html><body><table>")
+	for _, repo := range pathList {
+		fmt.Fprintf(w, "<tr><td><a href='"+gitwebUrl(repo.Path)+"'>"+relativeGitPath(repo.Path)+"<a></td>")
+		info, ok := repo.LatestCommit()
+		if ok {
+			fmt.Fprintf(w, "<td>"+info.SHA+"<td>"+info.Author+"<td>"+info.Date+"</td></tr>")
+		} else {
+			fmt.Fprintf(w, "<td span=3></td></tr>")
+		}
+	}
+	fmt.Fprintf(w, "</table></body></html>")
+}
+
+func printRepositories() {
+	repositories = make(map[string] *GitRepo)
+	findRepositories()
+	for _, repo := range sortedRepositories() {
+		info, ok := repo.LatestCommit()
+		if ok == false {
+			fmt.Println(repo)
+		} else {
+			fmt.Println(repo.String() + " " + info.String())
+		}
+	}
+}
+
 func main() {
+	flag.StringVar(&gitwebServerName, "gitwebServer", "localhost", "Gitweb server's hostname")
+	flag.StringVar(&baseGitDir, "baseGitDir", "/git", "Base Git directory on server")
+	flag.BoolVar(&runServer, "runServer", false, "Run web server or just print repositories")
+	flag.StringVar(&port, "port", "8080", "Port to listen from")
+	flag.Parse()
+
+	if flag.NArg() < 1 {
+		flag.Usage()
+		os.Exit(1)
+	}
+
 	curdir, _ := os.Getwd()
 	if runServer {
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			repositories = make(map[string] *GitRepo)
-			findRepositories()
-			pathList := sortedRepositories()
-			fmt.Fprintf(w, "<html><body>")
-			for _, repo := range pathList {
-				fmt.Fprintf(w, "<a href='"+gitwebUrl(repo.Path)+"'>"+relativeGitPath(repo.Path)+"<a><br>")
-			}
-			fmt.Fprintf(w, "</body></html>")
-		})
+		http.HandleFunc("/", handleRoot)
 		http.ListenAndServe(":"+port, nil)
 	} else {
-		findRepositories()
-		for _, repo := range sortedRepositories() {
-			fmt.Println(repo)
-		}
+		printRepositories()
 	}
 	os.Chdir(curdir)
 }
