@@ -90,9 +90,9 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w,
 			"<tr>" +
 			"<td><a href='" + repo.GitwebUrl() + "'>" + repo.RelativePath + "<a></td>" +
-			"<td id=" + repo.Name + "-sha></td>" +
-			"<td id=" + repo.Name + "-author></td>" +
-			"<td id=" + repo.Name + "-date></td>" +
+			"<td id=" + toCSSName(repo.Name) + "-sha></td>" +
+			"<td id=" + toCSSName(repo.Name) + "-author></td>" +
+			"<td id=" + toCSSName(repo.Name) + "-date></td>" +
 			"</tr>")
 	}
 	fmt.Fprintf(w, "</table></body></html>")
