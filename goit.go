@@ -27,7 +27,7 @@ func walk(path string, controlChannel chan bool) {
 	walkerChannel := make(chan bool, 100)
 	walkerCount := 0
 
-	if excludeRegexp != nil {
+	if excludeRegexpString != "" {
 		if matched := excludeRegexp.MatchString(path); matched {
 			controlChannel <- false
 			return
