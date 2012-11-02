@@ -4,7 +4,7 @@ function fillRepositorySummaries() {
         $.each(data, function(index, obj) {
 
             $.getJSON('/tip/master/' + obj['RelativePath'], function(info) {
-                var name = obj['Name'];
+                var name = obj['RelativePath'];
                 name = name.replace("/", "_");
                 name = name.replace(".", "_");
                 $("#" + name + "-sha").text(info['SHA']);
