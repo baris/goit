@@ -12,3 +12,10 @@ tr:hover {
     background: #cec;
 }
 
+td {
+    width: 25%;
+    max-width: 25%;
+    white-space: nowrap;
+    table-layout: fixed;
+    overflow: hidden;
+}

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -17,12 +18,21 @@ var GitwebServerName string
 
 var port string
 var runServer bool
+var excludeRegexpString string
+var excludeRegexp *regexp.Regexp
 var repositories map[string] *GitRepo // Repo.Name:Repo
 
 
 func walk(path string, controlChannel chan bool) {
 	walkerChannel := make(chan bool, 100)
 	walkerCount := 0
+
+	if excludeRegexp != nil {
+		if matched := excludeRegexp.MatchString(path); matched {
+			controlChannel <- false
+			return
+		}
+	}
 
 	repo, ok := NewRepo(path)
 	if ok {
@@ -163,7 +173,15 @@ func main() {
 	flag.StringVar(&GitwebServerName, "gitwebServer", "localhost", "Gitweb server's hostname")
 	flag.BoolVar(&runServer, "runServer", false, "Run web server or just print repositories")
 	flag.StringVar(&port, "port", "8080", "Port to listen from")
+	flag.StringVar(&excludeRegexpString, "excludeRegexp", "", "Exlude paths from being listed")
 	flag.Parse()
+
+	if re, err := regexp.Compile(excludeRegexpString); err != nil {
+		println("Regexp error")
+		os.Exit(1)
+	} else {
+		excludeRegexp = re
+	}
 
 	if flag.NArg() < 1 {
 		flag.Usage()
