@@ -79,13 +79,17 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 	pathList := sortedRepositories()
 	fmt.Fprintf(w, `<html><head>
 <title>Goit: Go Git web interface</title>
+<link rel="stylesheet" type="text/css" href="/files/bootstrap.min.css">
 <link rel="stylesheet" type="text/css" href="/files/base.css">
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
 <script type="text/javascript" src="/files/goit.js"></script>
 </head>
 <body>
+<div class="page-header">
+  <h1> [[ Goit ]] <small>for %s</small></h1>
+</div>
 <table>
-`)
+`, GitwebServerName)
 	for _, repo := range pathList {
 		fmt.Fprintf(w,
 			"<tr>" +
