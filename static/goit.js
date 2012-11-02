@@ -30,8 +30,9 @@ function searchFilter() {
 
 
 $(document).ready(function() {
-    fillRepositorySummaries();
     $("input#search").keyup(function () {
-        setTimeout(searchFilter, 150);
+        setTimeout(searchFilter, 50);
     });
+
+    setTimeout(fillRepositorySummaries, 5);
 });
