@@ -103,11 +103,12 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 <div class="page-header">
   <h1> [[ Goit ]] <small>for %s</small></h1>
 </div>
+<input id=search type="text" placeholder="Search…">
 <table>
 `, GitwebServerName)
 	for _, repo := range pathList {
 		fmt.Fprintf(w,
-			"<tr>" +
+			"<tr id=" + toCSSName(repo.Name) + ">" +
 			"<td><a href='" + repo.GitwebUrl() + "'>" + repo.RelativePath + "<a></td>" +
 			"<td id=" + toCSSName(repo.Name) + "-sha></td>" +
 			"<td id=" + toCSSName(repo.Name) + "-author></td>" +

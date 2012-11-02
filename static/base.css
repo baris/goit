@@ -19,3 +19,9 @@ td {
     table-layout: fixed;
     overflow: hidden;
 }
+
+input {
+    position: absolute;
+    top: 2em;
+    right: 2em;
+}
