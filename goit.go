@@ -202,7 +202,11 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
-	BaseGitDir = flag.Arg(0)
+	if path, err := filepath.Abs(flag.Arg(0)); err != nil {
+		BaseGitDir = path
+	} else {
+		BaseGitDir = flag.Arg(0)
+	}
 
 	curdir, _ := os.Getwd()
 	if runServer {
