@@ -23,15 +23,20 @@ var excludeRegexp *regexp.Regexp
 var repositories map[string] *GitRepo // Repo.Name:Repo
 
 
+func isExcluded(path string) bool {
+	if excludeRegexpString != "" {
+		return excludeRegexp.MatchString(path)
+	}
+	return false
+}
+
 func walk(path string, controlChannel chan bool) {
 	walkerChannel := make(chan bool, 100)
 	walkerCount := 0
 
-	if excludeRegexpString != "" {
-		if matched := excludeRegexp.MatchString(path); matched {
-			controlChannel <- false
-			return
-		}
+	if isExcluded(path) {
+		controlChannel <- false
+		return
 	}
 
 	repo, ok := NewRepo(path)
@@ -130,6 +135,10 @@ func handleAPIRepositories(w http.ResponseWriter, r *http.Request) {
 func handleAPIRepository(w http.ResponseWriter, r *http.Request) {
 	repository := strings.SplitN(r.URL.Path, "/", 3)[2]
 	path := filepath.Join(BaseGitDir, repository)
+	if isExcluded(path) {
+		fmt.Fprintf(w, JSONAPIError)
+		return
+	}
 	repo, ok := NewRepo(path)
 	if ok {
 		fmt.Fprintf(w, repo.Json())
@@ -142,6 +151,11 @@ func handleAPIRepositoryTip(w http.ResponseWriter, r *http.Request) {
 	parts := strings.SplitN(r.URL.Path, "/", 4)
 	branch := parts[2]
 	repository := parts[3]
+
+	if isExcluded(repository) {
+		fmt.Fprintf(w, JSONAPIError)
+		return
+	}
 
 	if branch != "master" {
 		// TODO: support other branches.
