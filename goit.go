@@ -54,15 +54,8 @@ func walk(path string, controlChannel chan bool) {
 
 func findRepositories() {
 	controlChannel := make(chan bool)
-
-	for _, dir := range flag.Args() {
-		go walk(dir, controlChannel)
-	}
-
-	// wait walkers
-	for _ = range flag.Args() {
-		<-controlChannel
-	}
+	go walk(BaseGitDir, controlChannel)
+	<-controlChannel // wait for walkers
 }
 
 
@@ -84,13 +77,13 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 	pathList := sortedRepositories()
 	fmt.Fprintf(w, "<html><body><table>")
 	for _, repo := range pathList {
-		fmt.Fprintf(w, "<tr><td><a href='"+repo.GitwebUrl()+"'>"+repo.RelativePath()+"<a></td>")
-		info := repo.LatestCommit
-		if info != nil {
-			fmt.Fprintf(w, "<td>"+info.SHA+"<td>"+info.Author+"<td>"+info.Date+"</td></tr>")
-		} else {
-			fmt.Fprintf(w, "<td span=3></td></tr>")
-		}
+		fmt.Fprintf(w,
+			"<tr>" +
+			"<td><a href='" + repo.GitwebUrl() + "'>" + repo.RelativePath() + "<a></td>" +
+			"<td id=" + repo.Name + "-sha></td>" +
+			"<td id=" + repo.Name + "-author></td>" +
+			"<td id=" + repo.Name + "-date></td>" +
+			"</tr>")
 	}
 	fmt.Fprintf(w, "</table></body></html>")
 }
@@ -100,19 +93,13 @@ func printRepositories() {
 	repositories = make(map[string] *GitRepo)
 	findRepositories()
 	for _, repo := range sortedRepositories() {
-		info := repo.LatestCommit
-		if info != nil {
-			fmt.Println(repo.RelativePath() + " " + info.String())
-		} else {
-			fmt.Println(repo.RelativePath())
-		}
+		println(repo.Path)
 	}
 }
 
 
 func main() {
 	flag.StringVar(&GitwebServerName, "gitwebServer", "localhost", "Gitweb server's hostname")
-	flag.StringVar(&BaseGitDir, "baseGitDir", "/git", "Base Git directory on server")
 	flag.BoolVar(&runServer, "runServer", false, "Run web server or just print repositories")
 	flag.StringVar(&port, "port", "8080", "Port to listen from")
 	flag.Parse()
@@ -121,6 +108,7 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
+	BaseGitDir = flag.Arg(0)
 
 	curdir, _ := os.Getwd()
 	if runServer {

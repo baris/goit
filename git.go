@@ -24,7 +24,6 @@ type GitRepo struct {
 	Name string
 	Path string
 	Type GitRepoType
-	LatestCommit *GitCommitInfo
 }
 
 type GitRepos []*GitRepo
@@ -108,10 +107,5 @@ func NewRepo(path string) (repo *GitRepo, ok bool) {
 	repo.Type = repoType
 	repo.Path = path
 	repo.Name = filepath.Base(path)
-	repo.LatestCommit = nil
-	info, ok := repo.GetLatestCommit()
-	if ok {
-		repo.LatestCommit = info
-	}
 	return repo, true
 }
