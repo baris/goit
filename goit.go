@@ -108,7 +108,7 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 `, GitwebServerName)
 	for _, repo := range pathList {
 		fmt.Fprintf(w,
-			"<tr id=" + toCSSName(repo.RelativePath) + ">" +
+			"<tr id=" + toCSSName(repo.RelativePath) + " relativePath='" + repo.RelativePath + "'>" +
 			"<td><a href='" + repo.GitwebUrl() + "'>" + repo.RelativePath + "<a></td>" +
 			"<td id=" + toCSSName(repo.RelativePath) + "-sha></td>" +
 			"<td id=" + toCSSName(repo.RelativePath) + "-author></td>" +

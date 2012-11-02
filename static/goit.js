@@ -1,17 +1,12 @@
 
 function fillRepositorySummaries() {
-    $.getJSON('/repositories', function(data) {
-        $.each(data, function(index, obj) {
-
-            $.getJSON('/tip/master/' + obj['RelativePath'], function(info) {
-                var name = obj['RelativePath'];
-                name = name.replace("/", "_");
-                name = name.replace(".", "_");
-                $("#" + name + "-sha").text(info['SHA']);
-                $("#" + name + "-author").text(info['Author']);
-                $("#" + name + "-date").text(info['Date']);
-            });
-
+    $("tr").each(function(index, obj) {
+        var name = $(obj).attr('id');
+        var path = $(obj).attr('relativePath');
+        $.getJSON('/tip/master/' + path, function(info) {
+            $("#" + name + "-sha").text(info['SHA']);
+            $("#" + name + "-author").text(info['Author']);
+            $("#" + name + "-date").text(info['Date']);
         });
     });
 }
