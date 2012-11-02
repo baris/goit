@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -23,6 +24,7 @@ type GitCommitInfo struct {
 type GitRepo struct {
 	Name string
 	Path string
+	RelativePath string
 	Type GitRepoType
 }
 
@@ -34,8 +36,16 @@ func (i *GitCommitInfo) String() string {
 }
 
 
+func (i *GitCommitInfo) Json() string {
+	if b, err := json.Marshal(i); err == nil {
+		return string(b)
+	}
+	return "{status=\"error\"}"
+}
+
+
 // sort.Interface for array type
-func (r GitRepos) Less(i, j int) bool { return r[i].RelativePath() < r[j].RelativePath() }
+func (r GitRepos) Less(i, j int) bool { return r[i].RelativePath < r[j].RelativePath }
 func (r GitRepos) Len() int { return len(r) }
 func (r GitRepos) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
 
@@ -45,21 +55,20 @@ func (r *GitRepo) String() string {
 }
 
 
-func (r *GitRepo) RelativePath() string {
-	gitPath := r.Path[len(BaseGitDir):]
-	if gitPath[0] == '/' {
-		gitPath = gitPath[1:]
+func (r *GitRepo) Json() string {
+	if b, err := json.Marshal(r); err == nil {
+		return string(b)
 	}
-	return gitPath
+	return JSONAPIError
 }
 
 
 func (r *GitRepo) GitwebUrl() string {
-	return "https://" + GitwebServerName + "?p=" + r.RelativePath()
+	return "https://" + GitwebServerName + "?p=" + r.RelativePath
 }
 
 
-func (r *GitRepo) GetLatestCommit() (info *GitCommitInfo, ok bool) {
+func (r *GitRepo) GetRepoTip() (info *GitCommitInfo, ok bool) {
 	gitDir := r.Path
 	if r.Type == NonBare {
 		gitDir += "/.git"
@@ -107,5 +116,12 @@ func NewRepo(path string) (repo *GitRepo, ok bool) {
 	repo.Type = repoType
 	repo.Path = path
 	repo.Name = filepath.Base(path)
+
+	relPath := path[len(BaseGitDir):]
+	if relPath[0] == '/' {
+		relPath = relPath[1:]
+	}
+	repo.RelativePath = relPath
+
 	return repo, true
 }

@@ -8,8 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
+const JSONAPIError = "{status=\"error\"}"
 var BaseGitDir string
 var GitwebServerName string
 
@@ -75,11 +77,19 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 	repositories = make(map[string] *GitRepo)
 	findRepositories()
 	pathList := sortedRepositories()
-	fmt.Fprintf(w, "<html><body><table>")
+	fmt.Fprintf(w, `<html><head>
+<title>Goit: Go Git web interface</title>
+<link rel="stylesheet" type="text/css" href="/files/base.css">
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<script type="text/javascript" src="/files/goit.js"></script>
+</head>
+<body>
+<table>
+`)
 	for _, repo := range pathList {
 		fmt.Fprintf(w,
 			"<tr>" +
-			"<td><a href='" + repo.GitwebUrl() + "'>" + repo.RelativePath() + "<a></td>" +
+			"<td><a href='" + repo.GitwebUrl() + "'>" + repo.RelativePath + "<a></td>" +
 			"<td id=" + repo.Name + "-sha></td>" +
 			"<td id=" + repo.Name + "-author></td>" +
 			"<td id=" + repo.Name + "-date></td>" +
@@ -89,11 +99,58 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 
+func handleAPIRepositories(w http.ResponseWriter, r *http.Request) {
+	repositories = make(map[string] *GitRepo)
+	findRepositories()
+	pathList := sortedRepositories()
+	stringPathList := []string{}
+	for _, path := range pathList {
+		stringPathList = append(stringPathList, path.Json())
+	}
+	fmt.Fprintf(w, "[\n")
+	fmt.Fprintf(w, strings.Join(stringPathList, ",\n"))
+	fmt.Fprintf(w, "\n]\n")
+}
+
+
+func handleAPIRepository(w http.ResponseWriter, r *http.Request) {
+	repository := strings.SplitN(r.URL.Path, "/", 3)[2]
+	path := filepath.Join(BaseGitDir, repository)
+	repo, ok := NewRepo(path)
+	if ok {
+		fmt.Fprintf(w, repo.Json())
+	} else {
+		fmt.Fprintf(w, JSONAPIError)
+	}
+}
+
+func handleAPIRepositoryTip(w http.ResponseWriter, r *http.Request) {
+	parts := strings.SplitN(r.URL.Path, "/", 4)
+	branch := parts[2]
+	repository := parts[3]
+
+	if branch != "master" {
+		// TODO: support other branches.
+		fmt.Fprintf(w, JSONAPIError)
+		return
+	}
+
+	path := filepath.Join(BaseGitDir, repository)
+	if repo, ok := NewRepo(path); ok {
+		if tip, ok := repo.GetRepoTip(); ok {
+			fmt.Fprintf(w, tip.Json())
+			return
+		}
+	}
+	fmt.Fprintf(w, JSONAPIError)
+}
+
+
 func printRepositories() {
 	repositories = make(map[string] *GitRepo)
 	findRepositories()
 	for _, repo := range sortedRepositories() {
-		println(repo.Path)
+		println(repo.Json())
 	}
 }
 
@@ -113,6 +170,11 @@ func main() {
 	curdir, _ := os.Getwd()
 	if runServer {
 		http.HandleFunc("/", handleRoot)
+		http.HandleFunc("/repositories/", handleAPIRepositories)
+		http.HandleFunc("/repository/", handleAPIRepository)
+		http.HandleFunc("/tip/", handleAPIRepositoryTip)
+
+		http.Handle("/files/", http.StripPrefix("/files/", http.FileServer(http.Dir("./static"))))
 		http.ListenAndServe(":"+port, nil)
 	} else {
 		printRepositories()
