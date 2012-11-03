@@ -14,11 +14,9 @@ func exists(path string) bool {
 	return false
 }
 
-
 func has(path, fileOrDir string) bool {
 	return exists(filepath.Join(path, fileOrDir))
 }
-
 
 func removeExt(path string) string {
 	ext := filepath.Ext(path)

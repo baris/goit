@@ -13,6 +13,7 @@ import (
 )
 
 const JSONAPIError = "{status=\"error\"}"
+
 var BaseGitDir string
 var GitwebServerName string
 
@@ -20,8 +21,7 @@ var port string
 var runServer bool
 var excludeRegexpString string
 var excludeRegexp *regexp.Regexp
-var repositories map[string] *GitRepo // Repo.Name:Repo
-
+var repositories map[string]*GitRepo // Repo.Name:Repo
 
 func isExcluded(path string) bool {
 	if excludeRegexpString != "" {
@@ -68,13 +68,11 @@ func walk(path string, controlChannel chan bool) {
 	controlChannel <- true
 }
 
-
 func findRepositories() {
 	controlChannel := make(chan bool)
 	go walk(BaseGitDir, controlChannel)
 	<-controlChannel // wait for walkers
 }
-
 
 func sortedRepositories() GitRepos {
 	pathList := make(GitRepos, len(repositories))
@@ -87,9 +85,8 @@ func sortedRepositories() GitRepos {
 	return pathList
 }
 
-
 func handleRoot(w http.ResponseWriter, r *http.Request) {
-	repositories = make(map[string] *GitRepo)
+	repositories = make(map[string]*GitRepo)
 	findRepositories()
 	pathList := sortedRepositories()
 	fmt.Fprintf(w, `<html><head>
@@ -108,19 +105,18 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 `, GitwebServerName)
 	for _, repo := range pathList {
 		fmt.Fprintf(w,
-			"<tr id=" + toCSSName(repo.RelativePath) + " relativePath='" + repo.RelativePath + "'>" +
-			"<td><a href='" + repo.GitwebUrl() + "'>" + repo.RelativePath + "<a></td>" +
-			"<td id=" + toCSSName(repo.RelativePath) + "-sha></td>" +
-			"<td id=" + toCSSName(repo.RelativePath) + "-author></td>" +
-			"<td id=" + toCSSName(repo.RelativePath) + "-date></td>" +
-			"</tr>")
+			"<tr id="+toCSSName(repo.RelativePath)+" relativePath='"+repo.RelativePath+"'>"+
+				"<td><a href='"+repo.GitwebUrl()+"'>"+repo.RelativePath+"<a></td>"+
+				"<td id="+toCSSName(repo.RelativePath)+"-sha></td>"+
+				"<td id="+toCSSName(repo.RelativePath)+"-author></td>"+
+				"<td id="+toCSSName(repo.RelativePath)+"-date></td>"+
+				"</tr>")
 	}
 	fmt.Fprintf(w, "</table></body></html>")
 }
 
-
 func handleAPIRepositories(w http.ResponseWriter, r *http.Request) {
-	repositories = make(map[string] *GitRepo)
+	repositories = make(map[string]*GitRepo)
 	findRepositories()
 	pathList := sortedRepositories()
 	stringPathList := []string{}
@@ -131,7 +127,6 @@ func handleAPIRepositories(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, strings.Join(stringPathList, ",\n"))
 	fmt.Fprintf(w, "\n]\n")
 }
-
 
 func handleAPIRepository(w http.ResponseWriter, r *http.Request) {
 	repository := strings.SplitN(r.URL.Path, "/", 3)[2]
@@ -174,15 +169,13 @@ func handleAPIRepositoryTip(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, JSONAPIError)
 }
 
-
 func printRepositories() {
-	repositories = make(map[string] *GitRepo)
+	repositories = make(map[string]*GitRepo)
 	findRepositories()
 	for _, repo := range sortedRepositories() {
 		println(repo.Json())
 	}
 }
-
 
 func main() {
 	flag.StringVar(&GitwebServerName, "gitwebServer", "localhost", "Gitweb server's hostname")

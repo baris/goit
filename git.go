@@ -16,25 +16,23 @@ const (
 )
 
 type GitCommitInfo struct {
-	SHA string
+	SHA    string
 	Author string
-	Date string
+	Date   string
 }
 
 type GitRepo struct {
-	Name string
-	Path string
+	Name         string
+	Path         string
 	RelativePath string
-	Type GitRepoType
+	Type         GitRepoType
 }
 
 type GitRepos []*GitRepo
 
-
 func (i *GitCommitInfo) String() string {
 	return i.SHA + ", " + i.Author + ", " + i.Date
 }
-
 
 func (i *GitCommitInfo) Json() string {
 	if b, err := json.Marshal(i); err == nil {
@@ -43,17 +41,14 @@ func (i *GitCommitInfo) Json() string {
 	return "{status=\"error\"}"
 }
 
-
 // sort.Interface for array type
 func (r GitRepos) Less(i, j int) bool { return r[i].RelativePath < r[j].RelativePath }
-func (r GitRepos) Len() int { return len(r) }
-func (r GitRepos) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
-
+func (r GitRepos) Len() int           { return len(r) }
+func (r GitRepos) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 
 func (r *GitRepo) String() string {
 	return r.Name
 }
-
 
 func (r *GitRepo) Json() string {
 	if b, err := json.Marshal(r); err == nil {
@@ -62,11 +57,9 @@ func (r *GitRepo) Json() string {
 	return JSONAPIError
 }
 
-
 func (r *GitRepo) GitwebUrl() string {
 	return "https://" + GitwebServerName + "?p=" + r.RelativePath
 }
-
 
 func (r *GitRepo) GetRepoTip() (info *GitCommitInfo, ok bool) {
 	gitDir := r.Path
@@ -86,7 +79,6 @@ func (r *GitRepo) GetRepoTip() (info *GitCommitInfo, ok bool) {
 	return info, true
 }
 
-
 func GitPathType(path string) (repoType GitRepoType, ok bool) {
 	ok = false
 	repoType = Unknown
@@ -99,7 +91,6 @@ func GitPathType(path string) (repoType GitRepoType, ok bool) {
 	}
 	return
 }
-
 
 func NewRepo(path string) (repo *GitRepo, ok bool) {
 	path, err := filepath.Abs(path)
