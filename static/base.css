@@ -1,24 +1,22 @@
-
 h1 {
     left-margin: 2em;
 }
 
-table {
-    width: 90%;
-    margin: 2em;
-}
-
-tr:hover {
-    background: #cec;
-}
-
-td {
-    width: 25%;
-    max-width: 25%;
-    white-space: nowrap;
+.table {
     table-layout: fixed;
-    overflow: hidden;
 }
+
+.table td {
+    width: 20%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.table td.repo_sha {
+    width: 10%
+}
+
 
 input {
     position: absolute;

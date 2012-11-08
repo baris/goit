@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -16,10 +17,13 @@ const (
 )
 
 type GitCommitInfo struct {
-	SHA    string
-	Author string
-	Date   string
+	SHA     string
+	Author  string
+	Date    string
+	Subject string
 }
+
+type GitCommitInfos []*GitCommitInfo
 
 type GitRepo struct {
 	Name         string
@@ -31,7 +35,7 @@ type GitRepo struct {
 type GitRepos []*GitRepo
 
 func (i *GitCommitInfo) String() string {
-	return i.SHA + ", " + i.Author + ", " + i.Date
+	return i.SHA + ", " + i.Author + ", " + i.Date + ", " + i.Subject
 }
 
 func (i *GitCommitInfo) Json() string {
@@ -61,12 +65,12 @@ func (r *GitRepo) GitwebUrl() string {
 	return "https://" + GitwebServerName + "?p=" + r.RelativePath
 }
 
-func (r *GitRepo) GetRepoTip() (info *GitCommitInfo, ok bool) {
+func (r *GitRepo) RepoTip() (info *GitCommitInfo, ok bool) {
 	gitDir := r.Path
 	if r.Type == NonBare {
 		gitDir += "/.git"
 	}
-	out, err := exec.Command("git", "--git-dir", gitDir, "log", "-1", "--format=%h#%ae#%ar").Output()
+	out, err := exec.Command("git", "--git-dir", gitDir, "log", "-1", "--format=%h#%ae#%ar#%s").Output()
 	if err != nil {
 		return nil, false
 	}
@@ -76,7 +80,31 @@ func (r *GitRepo) GetRepoTip() (info *GitCommitInfo, ok bool) {
 	info.SHA = parts[0]
 	info.Author = parts[1]
 	info.Date = parts[2]
+	info.Subject = parts[3]
 	return info, true
+}
+
+func (r *GitRepo) LastCommitsN(n int) (infos GitCommitInfos, ok bool) {
+	gitDir := r.Path
+	if r.Type == NonBare {
+		gitDir += "/.git"
+	}
+	out, err := exec.Command("git", "--git-dir", gitDir, "log", "-"+strconv.Itoa(n), "--format=%h#%ae#%ar#%s").Output()
+	if err != nil {
+		return nil, false
+	}
+	lines := strings.Split(strings.Trim(string(out), " \n"), "\n")
+	infos = make(GitCommitInfos, len(lines))
+	for index, line := range lines {
+		info := new(GitCommitInfo)
+		parts := strings.Split(strings.Trim(line, " \n"), "#")
+		info.SHA = parts[0]
+		info.Author = parts[1]
+		info.Date = parts[2]
+		info.Subject = parts[3]
+		infos[index] = info
+	}
+	return infos, true
 }
 
 func GitPathType(path string) (repoType GitRepoType, ok bool) {

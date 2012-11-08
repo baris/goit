@@ -100,17 +100,25 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 <div class="page-header">
   <h1> [[ Goit ]] <small>for %s</small></h1>
 </div>
-<input id=search type="text" placeholder="Search…">
-<table>
+<input class="form-search search-query" id="search" type="text" placeholder="Search…">
+<table class="table table-condensed table-hover">
+<tr id=table_header>
+<th>Repository</th>
+<th>SHA</th>
+<th>Last Author</th>
+<th>Last Commit Subject</th>
+<th>Date</th>
+</tr>
 `, GitwebServerName)
 	for _, repo := range pathList {
 		fmt.Fprintf(w,
 			"<tr id="+toCSSName(repo.RelativePath)+" relativePath='"+repo.RelativePath+"'>"+
-				"<td><a href='"+repo.GitwebUrl()+"'>"+repo.RelativePath+"<a></td>"+
-				"<td id="+toCSSName(repo.RelativePath)+"-sha></td>"+
-				"<td id="+toCSSName(repo.RelativePath)+"-author></td>"+
-				"<td id="+toCSSName(repo.RelativePath)+"-date></td>"+
-				"</tr>")
+			"<td class=repo_name><a href='"+repo.GitwebUrl()+"'>"+repo.RelativePath+"<a></td>"+
+			"<td class=repo_sha id="+toCSSName(repo.RelativePath)+"-sha></td>"+
+			"<td class=repo_author id="+toCSSName(repo.RelativePath)+"-author></td>"+
+			"<td class=repo_subject id="+toCSSName(repo.RelativePath)+"-subject></td>"+
+			"<td class=repo_date id="+toCSSName(repo.RelativePath)+"-date></td>"+
+			"</tr>")
 	}
 	fmt.Fprintf(w, "</table></body></html>")
 }
@@ -161,7 +169,7 @@ func handleAPIRepositoryTip(w http.ResponseWriter, r *http.Request) {
 
 	path := filepath.Join(BaseGitDir, repository)
 	if repo, ok := NewRepo(path); ok {
-		if tip, ok := repo.GetRepoTip(); ok {
+		if tip, ok := repo.RepoTip(); ok {
 			fmt.Fprintf(w, tip.Json())
 			return
 		}
@@ -174,6 +182,11 @@ func printRepositories() {
 	findRepositories()
 	for _, repo := range sortedRepositories() {
 		println(repo.Json())
+		if infos, ok := repo.LastCommitsN(10); ok == true {
+			for _, info := range infos {
+				println(info.String())
+			}
+		}
 	}
 }
 
