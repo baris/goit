@@ -6,6 +6,15 @@ import (
 	"strings"
 )
 
+func Filter(s []int, fn func(int) bool) (p []int) {
+	for _, i := range s {
+		if fn(i) {
+			p = append(p, i)
+		}
+	}
+	return p
+}
+
 func exists(path string) bool {
 	_, err := os.Stat(path)
 	if err == nil {

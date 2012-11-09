@@ -65,35 +65,37 @@ func (r *GitRepo) GitwebUrl() string {
 	return "https://" + GitwebServerName + "?p=" + r.RelativePath
 }
 
-func (r *GitRepo) RepoTip() (info *GitCommitInfo, ok bool) {
-	gitDir := r.Path
-	if r.Type == NonBare {
-		gitDir += "/.git"
+func (r *GitRepo) GitDir() string {
+	if r.Type == Bare {
+		return r.Path
 	}
-	out, err := exec.Command("git", "--git-dir", gitDir, "log", "-1", "--format=%h#%ae#%ar#%s").Output()
+	return r.Path + "/.git"
+}
+
+func (r *GitRepo) RunCommand(args ...string) (out string, ok bool) {
+	cmd := exec.Command("git")
+	cmd.Args = append([]string{"git", "--git-dir", r.GitDir()}, args...)
+	cmd_out, err := cmd.Output()
 	if err != nil {
-		return nil, false
+		return string(cmd_out), false
 	}
-	info = new(GitCommitInfo)
-	line := strings.Trim(string(out), " \n")
-	parts := strings.Split(line, "#")
-	info.SHA = parts[0]
-	info.Author = parts[1]
-	info.Date = parts[2]
-	info.Subject = parts[3]
-	return info, true
+	return string(cmd_out), true
+}
+
+func (r *GitRepo) LastCommit() (info *GitCommitInfo, ok bool) {
+	infos, ok := r.LastCommitsN(1)
+	if ok {
+		return infos[0], true
+	}
+	return nil, false
 }
 
 func (r *GitRepo) LastCommitsN(n int) (infos GitCommitInfos, ok bool) {
-	gitDir := r.Path
-	if r.Type == NonBare {
-		gitDir += "/.git"
-	}
-	out, err := exec.Command("git", "--git-dir", gitDir, "log", "-"+strconv.Itoa(n), "--format=%h#%ae#%ar#%s").Output()
-	if err != nil {
+	out, ok := r.RunCommand("log", "-"+strconv.Itoa(n), "--format=%h#%ae#%ar#%s")
+	if ok != true {
 		return nil, false
 	}
-	lines := strings.Split(strings.Trim(string(out), " \n"), "\n")
+	lines := strings.Split(strings.Trim(out, " \n"), "\n")
 	infos = make(GitCommitInfos, len(lines))
 	for index, line := range lines {
 		info := new(GitCommitInfo)
@@ -105,6 +107,20 @@ func (r *GitRepo) LastCommitsN(n int) (infos GitCommitInfos, ok bool) {
 		infos[index] = info
 	}
 	return infos, true
+}
+
+func (r *GitRepo) Heads() (heads []string) {
+	out, ok := r.RunCommand("for-each-ref", "--count", "10")
+	if ok != true {
+		return
+	}
+	for _, line := range strings.Split(strings.Trim(out, " \n"), "\n") {
+		head := strings.Split(strings.Split(line, " ")[1], "\t")[1]
+		if strings.HasPrefix(head, "refs/heads/") {
+			heads = append(heads, head[len("refs/heads/"):])
+		}
+	}
+	return
 }
 
 func GitPathType(path string) (repoType GitRepoType, ok bool) {

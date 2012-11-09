@@ -169,7 +169,7 @@ func handleAPIRepositoryTip(w http.ResponseWriter, r *http.Request) {
 
 	path := filepath.Join(BaseGitDir, repository)
 	if repo, ok := NewRepo(path); ok {
-		if tip, ok := repo.RepoTip(); ok {
+		if tip, ok := repo.LastCommit(); ok {
 			fmt.Fprintf(w, tip.Json())
 			return
 		}
@@ -182,11 +182,6 @@ func printRepositories() {
 	findRepositories()
 	for _, repo := range sortedRepositories() {
 		println(repo.Json())
-		if infos, ok := repo.LastCommitsN(10); ok == true {
-			for _, info := range infos {
-				println(info.String())
-			}
-		}
 	}
 }
 
