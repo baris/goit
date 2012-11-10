@@ -85,44 +85,6 @@ func sortedRepositories() GitRepos {
 	return pathList
 }
 
-func handleRoot(w http.ResponseWriter, r *http.Request) {
-	repositories = make(map[string]*GitRepo)
-	findRepositories()
-	pathList := sortedRepositories()
-	fmt.Fprintf(w, `<html><head>
-<title>Goit: Go Git web interface</title>
-<link rel="stylesheet" type="text/css" href="/files/bootstrap.min.css">
-<link rel="stylesheet" type="text/css" href="/files/base.css">
-<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
-<script type="text/javascript" src="/files/goit.js"></script>
-</head>
-<body>
-<div class="page-header">
-  <h1> [[ Goit ]] <small>for %s</small></h1>
-</div>
-<input class="form-search search-query" id="search" type="text" placeholder="Search…">
-<table class="table table-condensed table-hover">
-<tr id=table_header>
-<th>Repository</th>
-<th>SHA</th>
-<th>Last Author</th>
-<th>Last Commit Subject</th>
-<th>Date</th>
-</tr>
-`, GitwebServerName)
-	for _, repo := range pathList {
-		fmt.Fprintf(w,
-			"<tr id="+toCSSName(repo.RelativePath)+" relativePath='"+repo.RelativePath+"'>"+
-			"<td class=repo_name><a href='"+repo.GitwebUrl()+"'>"+repo.RelativePath+"<a></td>"+
-			"<td class=repo_sha id="+toCSSName(repo.RelativePath)+"-sha></td>"+
-			"<td class=repo_author id="+toCSSName(repo.RelativePath)+"-author></td>"+
-			"<td class=repo_subject id="+toCSSName(repo.RelativePath)+"-subject></td>"+
-			"<td class=repo_date id="+toCSSName(repo.RelativePath)+"-date></td>"+
-			"</tr>")
-	}
-	fmt.Fprintf(w, "</table></body></html>")
-}
-
 func handleAPIRepositories(w http.ResponseWriter, r *http.Request) {
 	repositories = make(map[string]*GitRepo)
 	findRepositories()
@@ -170,7 +132,7 @@ func handleAPIRepositoryTip(w http.ResponseWriter, r *http.Request) {
 	path := filepath.Join(BaseGitDir, repository)
 	if repo, ok := NewRepo(path); ok {
 		if tip, ok := repo.LastCommit(); ok {
-			fmt.Fprintf(w, tip.Json())
+			fmt.Fprintf(w, "[" + repo.Json() + "," + tip.Json() + "]" )
 			return
 		}
 	}
@@ -181,7 +143,7 @@ func printRepositories() {
 	repositories = make(map[string]*GitRepo)
 	findRepositories()
 	for _, repo := range sortedRepositories() {
-		println(repo.Json())
+		fmt.Println(repo.Json())
 	}
 }
 
@@ -211,12 +173,11 @@ func main() {
 
 	curdir, _ := os.Getwd()
 	if runServer {
-		http.HandleFunc("/", handleRoot)
+		http.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("./static"))))
 		http.HandleFunc("/repositories/", handleAPIRepositories)
 		http.HandleFunc("/repository/", handleAPIRepository)
 		http.HandleFunc("/tip/", handleAPIRepositoryTip)
 
-		http.Handle("/files/", http.StripPrefix("/files/", http.FileServer(http.Dir("./static"))))
 		http.ListenAndServe(":"+port, nil)
 	} else {
 		printRepositories()

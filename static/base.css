@@ -17,6 +17,14 @@ h1 {
     width: 10%
 }
 
+.table th {
+    border-top-style: none;
+}
+
+.page-header {
+    margin-bottom: .5em;
+    margin-top: .5em;
+}
 
 input {
     position: absolute;
