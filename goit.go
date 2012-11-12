@@ -217,7 +217,6 @@ func main() {
 		BaseGitDir = flag.Arg(0)
 	}
 
-	curdir, _ := os.Getwd()
 	if runServer {
 		http.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("./static"))))
 		http.HandleFunc("/r/", handleRepository)
@@ -230,5 +229,4 @@ func main() {
 	} else {
 		printRepositories()
 	}
-	os.Chdir(curdir)
 }
