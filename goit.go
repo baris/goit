@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -139,6 +140,45 @@ func handleAPIRepositoryTip(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, JSONAPIError)
 }
 
+func handleAPICommits(w http.ResponseWriter, r *http.Request) {
+	parts := strings.SplitN(r.URL.Path, "/", 5)
+	branch := parts[2]
+	numCommits, err := strconv.Atoi(parts[3]);
+	if err != nil {
+		fmt.Fprintf(w, JSONAPIError)
+		return
+	}
+	repository := parts[4]
+
+	if isExcluded(repository) {
+		fmt.Fprintf(w, JSONAPIError)
+		return
+	}
+
+	if branch != "master" {
+		// TODO: support other branches.
+		fmt.Fprintf(w, JSONAPIError)
+		return
+	}
+
+	path := filepath.Join(BaseGitDir, repository)
+	if repo, ok := NewRepo(path); ok {
+		infos, ok := repo.LastCommitsN(numCommits);
+		if ok != true {
+			fmt.Fprintf(w, JSONAPIError)
+			return
+		}
+
+		infoStrings:= []string{}
+		for _, info := range infos {
+			infoStrings = append(infoStrings, info.Json())
+		}
+		fmt.Fprintf(w, "[" + repo.Json() + ",[\n")
+		fmt.Fprintf(w, strings.Join(infoStrings, ",\n"))
+		fmt.Fprintf(w, "]]")
+	}
+}
+
 func printRepositories() {
 	repositories = make(map[string]*GitRepo)
 	findRepositories()
@@ -176,6 +216,7 @@ func main() {
 		http.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("./static"))))
 		http.HandleFunc("/repositories/", handleAPIRepositories)
 		http.HandleFunc("/repository/", handleAPIRepository)
+		http.HandleFunc("/commits/", handleAPICommits)
 		http.HandleFunc("/tip/", handleAPIRepositoryTip)
 
 		http.ListenAndServe(":"+port, nil)
