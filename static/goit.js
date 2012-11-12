@@ -16,7 +16,7 @@ function fillRepositories() {
             var repo = repos[i];
             var id = idFromPath(repo.RelativePath);
 	    obj = $("<tr id="+id+" relativePath='"+repo.RelativePath+"'>"+
-	            "<td class=repo_name><a href='"+id+"'>"+repo.RelativePath+"<a></td>"+
+	            "<td class=repo_name><a href=/repository.html#"+repo.RelativePath+">"+repo.RelativePath+"<a></td>"+
 	            "<td class=repo_sha id="+id+"-sha></td>"+
 	            "<td class=repo_author id="+id+"-author></td>"+
 	            "<td class=repo_subject id="+id+"-subject></td>"+
@@ -75,7 +75,39 @@ function repositoriesReady() {
     fillRepositorySummaries();
 }
 
+
+function showRepository(repository, limit) {
+    $.getJSON('/commits/master/'+limit+'/'+repository, function(ret) {
+        var repo = ret[0]; var commits = ret[1];
+        var id = idFromPath(repo.RelativePath);
+        for (var i = 0; i < commits.length; i++) {
+            commit = commits[i];
+            obj = $("<tr id="+id+" relativePath='"+repo.RelativePath+"'>"+
+	            "<td>"+commit.SHA+"</td>"+
+	            "<td>"+commit.Author+"</td>"+
+	            "<td>"+commit.Subject+"</td>"+
+	            "<td>"+commit.Date+"</td>"+
+	            "</tr>");
+            $('#table-body').append(obj);
+        }
+    });
+}
+
 $(document).ready(function() {
-    fillRepositories();
-    repositoriesReady();
+    var url = $(location).attr('href').match('.*#(.*)');
+    if (url && url[1].length > 0) {
+        parts = url[1].match('(.*)~(.*)')
+        repository = "";
+        limit = 50;
+        if (parts && parts[1].length > 0 && parts[2].length > 0) {
+            repository = parts[1];
+            limit = parts[2];
+        } else {
+            repository = url[1];
+        }
+        showRepository(repository, limit);
+    } else {
+        fillRepositories();
+        repositoriesReady();
+    }
 });

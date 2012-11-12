@@ -91,7 +91,7 @@ func (r *GitRepo) LastCommit() (info *GitCommitInfo, ok bool) {
 }
 
 func (r *GitRepo) LastCommitsN(n int) (infos GitCommitInfos, ok bool) {
-	out, ok := r.RunCommand("log", "-"+strconv.Itoa(n), "--format=%h#%ae#%ar#%s")
+	out, ok := r.RunCommand("log", "-"+strconv.Itoa(n), "--format=%H#%ae#%ar#%s")
 	if ok != true {
 		return nil, false
 	}

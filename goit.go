@@ -86,6 +86,12 @@ func sortedRepositories() GitRepos {
 	return pathList
 }
 
+func handleRepository(w http.ResponseWriter, r *http.Request) {
+	parts := strings.SplitN(r.URL.Path, "/", 3)
+	repository := parts[2]
+	http.Redirect(w, r, "/repository.html#" + repository, 302);
+}
+
 func handleAPIRepositories(w http.ResponseWriter, r *http.Request) {
 	repositories = make(map[string]*GitRepo)
 	findRepositories()
@@ -214,6 +220,7 @@ func main() {
 	curdir, _ := os.Getwd()
 	if runServer {
 		http.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("./static"))))
+		http.HandleFunc("/r/", handleRepository)
 		http.HandleFunc("/repositories/", handleAPIRepositories)
 		http.HandleFunc("/repository/", handleAPIRepository)
 		http.HandleFunc("/commits/", handleAPICommits)
