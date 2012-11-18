@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 const JSONAPIError = "{status=\"error\"}"
@@ -23,6 +24,13 @@ var runServer bool
 var excludeRegexpString string
 var excludeRegexp *regexp.Regexp
 var repositories map[string]*GitRepo // Repo.Name:Repo
+var repositoriesLock sync.Mutex;
+
+func addRepository(repo *GitRepo) {
+	repositoriesLock.Lock()
+	repositories[repo.Name] = repo
+	repositoriesLock.Unlock()
+}
 
 func isExcluded(path string) bool {
 	if excludeRegexpString != "" {
@@ -42,7 +50,7 @@ func walk(path string, controlChannel chan bool) {
 
 	repo, ok := NewRepo(path)
 	if ok {
-		repositories[repo.Name] = repo
+		addRepository(repo)
 		controlChannel <- true
 		return
 	}
