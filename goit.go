@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -154,6 +155,28 @@ func handleAPIRepositoryTip(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, JSONAPIError)
 }
 
+func handleAPIShow(w http.ResponseWriter, r *http.Request) {
+	parts := strings.SplitN(r.URL.Path, "/", 5)
+	branch := parts[2]
+	sha := parts[3]
+	repository := parts[4]
+
+	if branch != "master" {
+		// TODO: support other branches.
+		fmt.Fprintf(w, JSONAPIError)
+		return
+	}
+
+	path := filepath.Join(BaseGitDir, repository)
+	if repo, ok := NewRepo(path); ok {
+		if b, err := json.Marshal(repo.Show(sha)); err == nil {
+			fmt.Fprintf(w, string(b))
+			return
+		}
+	}
+	fmt.Fprintf(w, JSONAPIError)
+}
+
 func handleAPICommits(w http.ResponseWriter, r *http.Request) {
 	parts := strings.SplitN(r.URL.Path, "/", 5)
 	branch := parts[2]
@@ -231,6 +254,7 @@ func main() {
 		http.HandleFunc("/repositories/", handleAPIRepositories)
 		http.HandleFunc("/repository/", handleAPIRepository)
 		http.HandleFunc("/commits/", handleAPICommits)
+		http.HandleFunc("/show/", handleAPIShow)
 		http.HandleFunc("/tip/", handleAPIRepositoryTip)
 
 		http.ListenAndServe(":"+port, nil)

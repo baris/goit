@@ -109,6 +109,14 @@ func (r *GitRepo) LastCommitsN(n int) (infos GitCommitInfos, ok bool) {
 	return infos, true
 }
 
+func (r *GitRepo) Show(sha string) string {
+	out, ok := r.RunCommand("show", sha)
+	if ok != true {
+		return ""
+	}
+	return out
+}
+
 func (r *GitRepo) Heads() (heads []string) {
 	out, ok := r.RunCommand("for-each-ref", "--count", "10")
 	if ok != true {
