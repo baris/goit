@@ -2,9 +2,11 @@ var regexp;
 var fetchedRepositories = false;
 var repositories = new Array();
 
+
 function idFromPath(path) {
     return path.replace(/-/g, '_').replace(/\//g, '_').replace(/\./g, '_');
 }
+
 
 function fillRepositories() {
     if (fetchedRepositories === true) {
@@ -22,7 +24,7 @@ function fillRepositories() {
 	            "<td class=repo_subject id="+id+"-subject></td>"+
 	            "<td class=repo_date id="+id+"-date></td>"+
 	            "</tr>");
-            $('#table-body').append(obj);
+            $('#repositories-table').append(obj);
         }
         fetchedRepositories = true;
         $("tr").each(function (idx, obj) {
@@ -30,6 +32,7 @@ function fillRepositories() {
         });
     });
 }
+
 
 function fillRepositorySummaries() {
     for (var i = 0; i < repositories.length; i++) {
@@ -46,13 +49,16 @@ function fillRepositorySummaries() {
     }
 }
 
+
 function searchFilter() {
     for (var i = 0; i < repositories.length; i++) {
         var obj = repositories[i];
-        var name = obj.attr('id');
-        if (name == "table-header") {
+        var klass = obj.attr('class')
+        if (klass == "table-header") {
             continue;
         }
+
+        var name = obj.attr('id');
         if (regexp.test(name) === false) {
             obj.css({'display': 'none'});
         } else {
@@ -60,6 +66,7 @@ function searchFilter() {
         }
     }
 }
+
 
 function repositoriesReady() {
     if (fetchedRepositories == false) {
@@ -88,17 +95,31 @@ function showRepository(repository, limit) {
 	            "<td>"+commit.Subject+"</td>"+
 	            "<td>"+commit.Date+"</td>"+
 	            "</tr>");
-            $('#table-body').append(obj);
+            $('#repository-table').append(obj);
+        }
+    });
+
+    $.getJSON('/heads/'+repository, function(ret) {
+        var repo = ret[0]; var heads = ret[1];
+        var id = idFromPath(repo.RelativePath)
+        for (var i = 0; i < heads.length; i++) {
+            head = heads[i];
+            console.log(head);
+            obj = $("<tr id="+id+" relativePath='"+repo.RelativePath+"'>"+
+	            "<td>"+head+"</td>"+
+	            "</tr>");
+            $('#heads-table').append(obj);
         }
     });
 }
 
+
 $(document).ready(function() {
     var url = $(location).attr('href').match('.*#(.*)');
     if (url && url[1].length > 0) {
-        parts = url[1].match('(.*)~(.*)')
+        parts = url[1].match('(.*)~(.*)~(.*)')
         repository = "";
-        limit = 50;
+        limit = 10;
         if (parts && parts[1].length > 0 && parts[2].length > 0) {
             repository = parts[1];
             limit = parts[2];

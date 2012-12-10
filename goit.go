@@ -177,6 +177,22 @@ func handleAPIShow(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, JSONAPIError)
 }
 
+func handleAPIHeads(w http.ResponseWriter, r *http.Request) {
+	parts := strings.SplitN(r.URL.Path, "/", 3)
+	repository := parts[2]
+
+	path := filepath.Join(BaseGitDir, repository)
+	if repo, ok := NewRepo(path); ok {
+		if b, err := json.Marshal(repo.Heads()); err == nil {
+			fmt.Fprintf(w, "[" + repo.Json() + ",")
+			fmt.Fprintf(w, string(b))
+			fmt.Fprintf(w, "]")
+			return
+		}
+	}
+	fmt.Fprintf(w, JSONAPIError)
+}
+
 func handleAPICommits(w http.ResponseWriter, r *http.Request) {
 	parts := strings.SplitN(r.URL.Path, "/", 5)
 	branch := parts[2]
@@ -254,6 +270,7 @@ func main() {
 		http.HandleFunc("/repositories/", handleAPIRepositories)
 		http.HandleFunc("/repository/", handleAPIRepository)
 		http.HandleFunc("/commits/", handleAPICommits)
+		http.HandleFunc("/heads/", handleAPIHeads)
 		http.HandleFunc("/show/", handleAPIShow)
 		http.HandleFunc("/tip/", handleAPIRepositoryTip)
 
