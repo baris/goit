@@ -29,6 +29,7 @@ type GitRepo struct {
 	Name         string
 	Path         string
 	RelativePath string
+	GitwebUrl    string
 	Type         GitRepoType
 }
 
@@ -61,9 +62,9 @@ func (r *GitRepo) Json() string {
 	return JSONAPIError
 }
 
-func (r *GitRepo) GitwebUrl() string {
-	return "https://" + GitwebServerName + "?p=" + r.RelativePath
-}
+//func (r *GitRepo) GitwebUrl() string {
+//	return "https://" + GitwebServerName + "?p=" + r.RelativePath
+//}
 
 func (r *GitRepo) GitDir() string {
 	if r.Type == Bare {
@@ -165,6 +166,8 @@ func NewRepo(path string) (repo *GitRepo, ok bool) {
 		relPath = relPath[1:]
 	}
 	repo.RelativePath = relPath
+
+	repo.GitwebUrl = "https://" + GitwebServerName + "?p=" + repo.RelativePath
 
 	return repo, true
 }

@@ -18,7 +18,8 @@ function fillRepositories() {
             var repo = repos[i];
             var id = idFromPath(repo.RelativePath);
 	    obj = $("<tr id="+id+" relativePath='"+repo.RelativePath+"'>"+
-	            "<td class=repo_name><a href=/repository.html#"+repo.RelativePath+">"+repo.RelativePath+"<a></td>"+
+	            "<td class=repo_name><a href=/repository.html#"+repo.RelativePath+">"+repo.RelativePath+"</a></td>"+
+		    "<td class=repo_gitweb><a href="+repo.GitwebUrl+">Gitweb Page</a></td>"+
 	            "<td class=repo_sha id="+id+"-sha></td>"+
 	            "<td class=repo_author id="+id+"-author></td>"+
 	            "<td class=repo_subject id="+id+"-subject></td>"+
