@@ -29,7 +29,7 @@ var repositoriesLock sync.Mutex;
 
 func addRepository(repo *GitRepo) {
 	repositoriesLock.Lock()
-	repositories[repo.Name] = repo
+	repositories[repo.Path] = repo
 	repositoriesLock.Unlock()
 }
 
