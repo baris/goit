@@ -1,10 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -25,7 +25,7 @@ var runServer bool
 var excludeRegexpString string
 var excludeRegexp *regexp.Regexp
 var repositories map[string]*GitRepo // Repo.Name:Repo
-var repositoriesLock sync.Mutex;
+var repositoriesLock sync.Mutex
 
 func addRepository(repo *GitRepo) {
 	repositoriesLock.Lock()
@@ -98,7 +98,7 @@ func sortedRepositories() GitRepos {
 func handleRepository(w http.ResponseWriter, r *http.Request) {
 	parts := strings.SplitN(r.URL.Path, "/", 3)
 	repository := parts[2]
-	http.Redirect(w, r, "/repository.html#" + repository, 302);
+	http.Redirect(w, r, "/repository.html#"+repository, 302)
 }
 
 func handleAPIRepositories(w http.ResponseWriter, r *http.Request) {
@@ -148,7 +148,7 @@ func handleAPIRepositoryTip(w http.ResponseWriter, r *http.Request) {
 	path := filepath.Join(BaseGitDir, repository)
 	if repo, ok := NewRepo(path); ok {
 		if tip, ok := repo.LastCommit(); ok {
-			fmt.Fprintf(w, "[" + repo.Json() + "," + tip.Json() + "]" )
+			fmt.Fprintf(w, "["+repo.Json()+","+tip.Json()+"]")
 			return
 		}
 	}
@@ -184,7 +184,7 @@ func handleAPIHeads(w http.ResponseWriter, r *http.Request) {
 	path := filepath.Join(BaseGitDir, repository)
 	if repo, ok := NewRepo(path); ok {
 		if b, err := json.Marshal(repo.Heads()); err == nil {
-			fmt.Fprintf(w, "[" + repo.Json() + ",")
+			fmt.Fprintf(w, "["+repo.Json()+",")
 			fmt.Fprintf(w, string(b))
 			fmt.Fprintf(w, "]")
 			return
@@ -196,7 +196,7 @@ func handleAPIHeads(w http.ResponseWriter, r *http.Request) {
 func handleAPICommits(w http.ResponseWriter, r *http.Request) {
 	parts := strings.SplitN(r.URL.Path, "/", 5)
 	branch := parts[2]
-	numCommits, err := strconv.Atoi(parts[3]);
+	numCommits, err := strconv.Atoi(parts[3])
 	if err != nil {
 		fmt.Fprintf(w, JSONAPIError)
 		return
@@ -216,17 +216,17 @@ func handleAPICommits(w http.ResponseWriter, r *http.Request) {
 
 	path := filepath.Join(BaseGitDir, repository)
 	if repo, ok := NewRepo(path); ok {
-		infos, ok := repo.LastCommitsN(numCommits);
+		infos, ok := repo.LastCommitsN(numCommits)
 		if ok != true {
 			fmt.Fprintf(w, JSONAPIError)
 			return
 		}
 
-		infoStrings:= []string{}
+		infoStrings := []string{}
 		for _, info := range infos {
 			infoStrings = append(infoStrings, info.Json())
 		}
-		fmt.Fprintf(w, "[" + repo.Json() + ",[\n")
+		fmt.Fprintf(w, "["+repo.Json()+",[\n")
 		fmt.Fprintf(w, strings.Join(infoStrings, ",\n"))
 		fmt.Fprintf(w, "]]")
 	}
