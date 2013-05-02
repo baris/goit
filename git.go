@@ -162,8 +162,9 @@ func NewRepo(path string) (repo *GitRepo, ok bool) {
 	repo.Name = filepath.Base(path)
 
 	relPath := path[len(BaseGitDir):]
-	if relPath[0] == '/' {
-		relPath = relPath[1:]
+	relPath = strings.TrimLeft(relPath, "/")
+	if len(relPath) == 0 {
+	    relPath = "."
 	}
 	repo.RelativePath = relPath
 
