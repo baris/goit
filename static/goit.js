@@ -47,8 +47,18 @@ goit.fillRepositorySummaries = function () {
         $.getJSON('/tip/master/' + path, function(ret) {
             var repo = ret[0]; var info = ret[1];
             var id = goit.idFromPath(repo.RelativePath);
-            $("#" + id + "-sha").text(info['SHA']);
-            $("#" + id + "-author").text(info['Author']);
+            $("#" + id + "-sha").html(
+                $("<a>", {
+                    "href": repo.GitwebUrl+";a=commitdiff;h="+info['SHA'],
+                    "text": info['SHA'],
+                })
+            );
+            $("#" + id + "-author").html(
+                $("<a>", {
+                    "href": repo.GitwebUrl+";a=search;s="+info['Author']+";st=author",
+                    "text": info['Author'],
+                })
+            );
             $("#" + id + "-date").text(info['Date']);
             $("#" + id + "-subject").text(info['Subject']);
         });
@@ -96,8 +106,8 @@ goit.showRepository = function (repository, limit) {
         for (var i = 0; i < commits.length; i++) {
             commit = commits[i];
             obj = $("<tr id="+id+" relativePath='"+repo.RelativePath+"'>"+
-	            "<td>"+commit.SHA+"</td>"+
-	            "<td>"+commit.Author+"</td>"+
+	            "<td><a href="+repo.GitwebUrl+";a=commitdiff;h="+commit.SHA+">"+commit.SHA+"</a></td>"+
+	            "<td><a href="+repo.GitwebUrl+";a=search;s="+commit.Author+";st=author>"+commit.Author+"</a></td>"+
 	            "<td>"+commit.Subject+"</td>"+
 	            "<td>"+commit.Date+"</td>"+
 	            "</tr>");
@@ -113,7 +123,9 @@ goit.showRepository = function (repository, limit) {
             head = heads[i];
             console.log(head);
             obj = $("<tr id="+id+" relativePath='"+repo.RelativePath+"'>"+
-	            "<td>"+head+"</td>"+
+	            "<td><a href="+repo.GitwebUrl+";a=shortlog;h=refs/heads/"+head+">"+
+	            head+
+	            "</a></td>"+
 	            "</tr>");
             $('#heads-table').append(obj);
         }
