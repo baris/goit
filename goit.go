@@ -15,6 +15,10 @@ import (
 	"sync"
 )
 
+import (
+	"github.com/baris/ldap"
+)
+
 const JSONAPIError = "{status=\"error\"}"
 
 var BaseGitDir string
@@ -28,6 +32,8 @@ var repositories map[string]*GitRepo // Repo.Name:Repo
 var repositoriesLock sync.Mutex
 var sslCertFile string
 var sslKeyFile string
+var ldapURL string
+var ldapDomain string
 
 func addRepository(repo *GitRepo) {
 	repositoriesLock.Lock()
@@ -195,6 +201,25 @@ func handleAPIHeads(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, JSONAPIError)
 }
 
+func handleLDAPLogin(w http.ResponseWriter, r *http.Request) {
+	username, password := "", ""
+	if err := r.ParseForm(); err == nil {
+		username = r.PostFormValue("username")
+		password = r.PostFormValue("password")
+	}
+
+	if l, err := ldap.Dial("tcp", ldapURL); err == nil {
+		defer l.Close()
+		if err := l.Bind(username+"@"+ldapDomain, password); err == nil {
+			fmt.Fprintf(w, "Success")
+			return
+		}
+		fmt.Fprintf(w, "Failure to authenticate")
+		return
+	}
+	fmt.Fprintf(w, "Failure to connect ldap server")
+}
+
 func handleAPICommits(w http.ResponseWriter, r *http.Request) {
 	parts := strings.SplitN(r.URL.Path, "/", 5)
 	branch := parts[2]
@@ -249,6 +274,8 @@ func main() {
 	flag.StringVar(&excludeRegexpString, "excludeRegexp", "", "Exlude paths from being listed")
 	flag.StringVar(&sslCertFile, "certFile", "", "SSL Certificate path")
 	flag.StringVar(&sslKeyFile, "keyFile", "", "SSL Key path")
+	flag.StringVar(&ldapURL, "ldapUrl", "", "LDAP URL (i.e. ldap.example.com:321)")
+	flag.StringVar(&ldapDomain, "ldapDomain", "", "LDAP domain (i.e. example.com)")
 	flag.Parse()
 
 	if re, err := regexp.Compile(excludeRegexpString); err != nil {
@@ -277,6 +304,7 @@ func main() {
 		http.HandleFunc("/heads/", handleAPIHeads)
 		http.HandleFunc("/show/", handleAPIShow)
 		http.HandleFunc("/tip/", handleAPIRepositoryTip)
+		http.HandleFunc("/login/", handleLDAPLogin)
 
 		if sslCertFile != "" && sslKeyFile != "" {
 			http.ListenAndServeTLS(":"+port, sslCertFile, sslKeyFile, nil)

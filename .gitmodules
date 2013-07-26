@@ -1,0 +1,6 @@
+[submodule "src/github.com/baris/ldap"]
+	path = src/github.com/baris/ldap
+	url = https://github.com/baris/ldap.git
+[submodule "src/github.com/baris/asn1-ber"]
+	path = src/github.com/baris/asn1-ber
+	url = https://github.com/baris/asn1-ber.git
