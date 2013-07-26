@@ -26,6 +26,8 @@ var excludeRegexpString string
 var excludeRegexp *regexp.Regexp
 var repositories map[string]*GitRepo // Repo.Name:Repo
 var repositoriesLock sync.Mutex
+var sslCertFile string
+var sslKeyFile string
 
 func addRepository(repo *GitRepo) {
 	repositoriesLock.Lock()
@@ -245,6 +247,8 @@ func main() {
 	flag.BoolVar(&runServer, "runServer", false, "Run web server or just print repositories")
 	flag.StringVar(&port, "port", "8080", "Port to listen from")
 	flag.StringVar(&excludeRegexpString, "excludeRegexp", "", "Exlude paths from being listed")
+	flag.StringVar(&sslCertFile, "certFile", "", "SSL Certificate path")
+	flag.StringVar(&sslKeyFile, "keyFile", "", "SSL Key path")
 	flag.Parse()
 
 	if re, err := regexp.Compile(excludeRegexpString); err != nil {
@@ -274,7 +278,11 @@ func main() {
 		http.HandleFunc("/show/", handleAPIShow)
 		http.HandleFunc("/tip/", handleAPIRepositoryTip)
 
-		http.ListenAndServe(":"+port, nil)
+		if sslCertFile != "" && sslKeyFile != "" {
+			http.ListenAndServeTLS(":"+port, sslCertFile, sslKeyFile, nil)
+		} else {
+			http.ListenAndServe(":"+port, nil)
+		}
 	} else {
 		printRepositories()
 	}
