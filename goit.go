@@ -17,9 +17,11 @@ import (
 
 import (
 	"github.com/baris/ldap"
+	"github.com/gorilla/sessions"
 )
 
-const JSONAPIError = "{status=\"error\"}"
+const JSONAPIError = "{\"error\":1}"
+const JSONLoginError = "{\"login_error\":1}"
 
 var BaseGitDir string
 var GitwebServerName string
@@ -34,6 +36,8 @@ var sslCertFile string
 var sslKeyFile string
 var ldapURL string
 var ldapDomain string
+var cookieSecret string
+var store *sessions.CookieStore
 
 func addRepository(repo *GitRepo) {
 	repositoriesLock.Lock()
@@ -44,6 +48,14 @@ func addRepository(repo *GitRepo) {
 func isExcluded(path string) bool {
 	if excludeRegexpString != "" {
 		return excludeRegexp.MatchString(path)
+	}
+	return false
+}
+
+func isLoggedIn(w http.ResponseWriter, r *http.Request) bool {
+	session, _ := store.Get(r, "goit")
+	if _, ok := session.Values["login"]; ok {
+		return true
 	}
 	return false
 }
@@ -104,12 +116,22 @@ func sortedRepositories() GitRepos {
 }
 
 func handleRepository(w http.ResponseWriter, r *http.Request) {
+	if !isLoggedIn(w, r) {
+		fmt.Fprintf(w, JSONLoginError)
+		return
+	}
+
 	parts := strings.SplitN(r.URL.Path, "/", 3)
 	repository := parts[2]
 	http.Redirect(w, r, "/repository.html#"+repository, 302)
 }
 
 func handleAPIRepositories(w http.ResponseWriter, r *http.Request) {
+	if !isLoggedIn(w, r) {
+		fmt.Fprintf(w, JSONLoginError)
+		return
+	}
+
 	repositories = make(map[string]*GitRepo)
 	findRepositories()
 	pathList := sortedRepositories()
@@ -123,6 +145,11 @@ func handleAPIRepositories(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAPIRepository(w http.ResponseWriter, r *http.Request) {
+	if !isLoggedIn(w, r) {
+		fmt.Fprintf(w, JSONLoginError)
+		return
+	}
+
 	repository := strings.SplitN(r.URL.Path, "/", 3)[2]
 	path := filepath.Join(BaseGitDir, repository)
 	if isExcluded(path) {
@@ -138,6 +165,10 @@ func handleAPIRepository(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAPIRepositoryTip(w http.ResponseWriter, r *http.Request) {
+	if !isLoggedIn(w, r) {
+		fmt.Fprintf(w, JSONLoginError)
+	}
+
 	parts := strings.SplitN(r.URL.Path, "/", 4)
 	branch := parts[2]
 	repository := parts[3]
@@ -164,6 +195,11 @@ func handleAPIRepositoryTip(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAPIShow(w http.ResponseWriter, r *http.Request) {
+	if !isLoggedIn(w, r) {
+		fmt.Fprintf(w, JSONLoginError)
+		return
+	}
+
 	parts := strings.SplitN(r.URL.Path, "/", 5)
 	branch := parts[2]
 	sha := parts[3]
@@ -186,6 +222,11 @@ func handleAPIShow(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAPIHeads(w http.ResponseWriter, r *http.Request) {
+	if !isLoggedIn(w, r) {
+		fmt.Fprintf(w, JSONLoginError)
+		return
+	}
+
 	parts := strings.SplitN(r.URL.Path, "/", 3)
 	repository := parts[2]
 
@@ -201,26 +242,11 @@ func handleAPIHeads(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, JSONAPIError)
 }
 
-func handleLDAPLogin(w http.ResponseWriter, r *http.Request) {
-	username, password := "", ""
-	if err := r.ParseForm(); err == nil {
-		username = r.PostFormValue("username")
-		password = r.PostFormValue("password")
-	}
-
-	if l, err := ldap.Dial("tcp", ldapURL); err == nil {
-		defer l.Close()
-		if err := l.Bind(username+"@"+ldapDomain, password); err == nil {
-			fmt.Fprintf(w, "Success")
-			return
-		}
-		fmt.Fprintf(w, "Failure to authenticate")
-		return
-	}
-	fmt.Fprintf(w, "Failure to connect ldap server")
-}
-
 func handleAPICommits(w http.ResponseWriter, r *http.Request) {
+	if !isLoggedIn(w, r) {
+		fmt.Fprintf(w, JSONLoginError)
+	}
+
 	parts := strings.SplitN(r.URL.Path, "/", 5)
 	branch := parts[2]
 	numCommits, err := strconv.Atoi(parts[3])
@@ -259,6 +285,26 @@ func handleAPICommits(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func handleLDAPLogin(w http.ResponseWriter, r *http.Request) {
+	username, password := "", ""
+	if err := r.ParseForm(); err == nil {
+		username = r.PostFormValue("username")
+		password = r.PostFormValue("password")
+	}
+
+	if l, err := ldap.Dial("tcp", ldapURL); err == nil {
+		defer l.Close()
+		if err := l.Bind(username+"@"+ldapDomain, password); err == nil {
+			session, _ := store.Get(r, "goit")
+			session.Values["login"] = username
+			session.Save(r, w)
+			http.Redirect(w, r, "/index.html", 302)
+			return
+		}
+	}
+	http.Redirect(w, r, "/login.html", 302)
+}
+
 func printRepositories() {
 	repositories = make(map[string]*GitRepo)
 	findRepositories()
@@ -276,6 +322,7 @@ func main() {
 	flag.StringVar(&sslKeyFile, "keyFile", "", "SSL Key path")
 	flag.StringVar(&ldapURL, "ldapUrl", "", "LDAP URL (i.e. ldap.example.com:321)")
 	flag.StringVar(&ldapDomain, "ldapDomain", "", "LDAP domain (i.e. example.com)")
+	flag.StringVar(&cookieSecret, "cookieSecret", "", "Secret key to authenticate sessions")
 	flag.Parse()
 
 	if re, err := regexp.Compile(excludeRegexpString); err != nil {
@@ -305,6 +352,8 @@ func main() {
 		http.HandleFunc("/show/", handleAPIShow)
 		http.HandleFunc("/tip/", handleAPIRepositoryTip)
 		http.HandleFunc("/login/", handleLDAPLogin)
+
+		store = sessions.NewCookieStore([]byte(cookieSecret))
 
 		if sslCertFile != "" && sslKeyFile != "" {
 			http.ListenAndServeTLS(":"+port, sslCertFile, sslKeyFile, nil)
