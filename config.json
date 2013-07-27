@@ -1,0 +1,12 @@
+{
+    "Git_dir": "/path/to/git/",
+    "Server": true,
+    "Port": "8888",
+    "Exclude": ".*abc.*",
+    "SslCertFile": "",
+    "SslKeyFile": "",
+    "Ldap_url": "auth.ldap.example.com:389",
+    "Ldap_domain": "ldap.example.com",
+    "Cookie_secret": "secret string",
+    "Gitwebserver_name": "gitweb.example.com"
+}

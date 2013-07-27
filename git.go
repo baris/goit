@@ -161,14 +161,14 @@ func NewRepo(path string) (repo *GitRepo, ok bool) {
 	repo.Path = path
 	repo.Name = filepath.Base(path)
 
-	relPath := path[len(BaseGitDir):]
+	relPath := path[len(config.Git_dir):]
 	relPath = strings.TrimLeft(relPath, "/")
 	if len(relPath) == 0 {
 		relPath = "."
 	}
 	repo.RelativePath = relPath
 
-	repo.GitwebUrl = "https://" + GitwebServerName + "?p=" + repo.RelativePath
+	repo.GitwebUrl = "https://" + config.Gitwebserver_name + "?p=" + repo.RelativePath
 
 	return repo, true
 }

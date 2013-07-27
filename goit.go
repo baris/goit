@@ -23,21 +23,26 @@ import (
 const JSONAPIError = "{\"error\":1}"
 const JSONLoginError = "{\"login_error\":1}"
 
-var BaseGitDir string
-var GitwebServerName string
-
-var port string
-var runServer bool
-var excludeRegexpString string
-var excludeRegexp *regexp.Regexp
 var repositories map[string]*GitRepo // Repo.Name:Repo
 var repositoriesLock sync.Mutex
-var sslCertFile string
-var sslKeyFile string
-var ldapURL string
-var ldapDomain string
-var cookieSecret string
-var store *sessions.CookieStore
+
+var cookieStore *sessions.CookieStore
+var excludeRegexp *regexp.Regexp
+var configFile string
+var config Config
+
+type Config struct {
+	Git_dir string
+	Server bool
+	Port string
+	Exclude string
+	SslCertFile string
+	SslKeyFile string
+	Ldap_url string
+	Ldap_domain string
+	Cookie_secret string
+	Gitwebserver_name string
+}
 
 func addRepository(repo *GitRepo) {
 	repositoriesLock.Lock()
@@ -46,14 +51,22 @@ func addRepository(repo *GitRepo) {
 }
 
 func isExcluded(path string) bool {
-	if excludeRegexpString != "" {
+	if config.Exclude != "" {
 		return excludeRegexp.MatchString(path)
 	}
 	return false
 }
 
+func enableAuthentication() bool {
+	return config.Ldap_url != "" && config.Ldap_domain != ""
+}
+
 func isLoggedIn(w http.ResponseWriter, r *http.Request) bool {
-	session, _ := store.Get(r, "goit")
+	if !enableAuthentication() {
+		return true
+	}
+
+	session, _ := cookieStore.Get(r, "goit")
 	if _, ok := session.Values["login"]; ok {
 		return true
 	}
@@ -100,7 +113,7 @@ func walk(path string, controlChannel chan bool) {
 
 func findRepositories() {
 	controlChannel := make(chan bool)
-	go walk(BaseGitDir, controlChannel)
+	go walk(config.Git_dir, controlChannel)
 	<-controlChannel // wait for walkers
 }
 
@@ -151,7 +164,7 @@ func handleAPIRepository(w http.ResponseWriter, r *http.Request) {
 	}
 
 	repository := strings.SplitN(r.URL.Path, "/", 3)[2]
-	path := filepath.Join(BaseGitDir, repository)
+	path := filepath.Join(config.Git_dir, repository)
 	if isExcluded(path) {
 		fmt.Fprintf(w, JSONAPIError)
 		return
@@ -184,7 +197,7 @@ func handleAPIRepositoryTip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := filepath.Join(BaseGitDir, repository)
+	path := filepath.Join(config.Git_dir, repository)
 	if repo, ok := NewRepo(path); ok {
 		if tip, ok := repo.LastCommit(); ok {
 			fmt.Fprintf(w, "["+repo.Json()+","+tip.Json()+"]")
@@ -211,7 +224,7 @@ func handleAPIShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := filepath.Join(BaseGitDir, repository)
+	path := filepath.Join(config.Git_dir, repository)
 	if repo, ok := NewRepo(path); ok {
 		if b, err := json.Marshal(repo.Show(sha)); err == nil {
 			fmt.Fprintf(w, string(b))
@@ -230,7 +243,7 @@ func handleAPIHeads(w http.ResponseWriter, r *http.Request) {
 	parts := strings.SplitN(r.URL.Path, "/", 3)
 	repository := parts[2]
 
-	path := filepath.Join(BaseGitDir, repository)
+	path := filepath.Join(config.Git_dir, repository)
 	if repo, ok := NewRepo(path); ok {
 		if b, err := json.Marshal(repo.Heads()); err == nil {
 			fmt.Fprintf(w, "["+repo.Json()+",")
@@ -267,7 +280,7 @@ func handleAPICommits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := filepath.Join(BaseGitDir, repository)
+	path := filepath.Join(config.Git_dir, repository)
 	if repo, ok := NewRepo(path); ok {
 		infos, ok := repo.LastCommitsN(numCommits)
 		if ok != true {
@@ -292,10 +305,10 @@ func handleLDAPLogin(w http.ResponseWriter, r *http.Request) {
 		password = r.PostFormValue("password")
 	}
 
-	if l, err := ldap.Dial("tcp", ldapURL); err == nil {
+	if l, err := ldap.Dial("tcp", config.Ldap_url); err == nil {
 		defer l.Close()
-		if err := l.Bind(username+"@"+ldapDomain, password); err == nil {
-			session, _ := store.Get(r, "goit")
+		if err := l.Bind(username+"@"+config.Ldap_domain, password); err == nil {
+			session, _ := cookieStore.Get(r, "goit")
 			session.Values["login"] = username
 			session.Save(r, w)
 			http.Redirect(w, r, "/index.html", 302)
@@ -314,35 +327,24 @@ func printRepositories() {
 }
 
 func main() {
-	flag.StringVar(&GitwebServerName, "gitwebServer", "localhost", "Gitweb server's hostname")
-	flag.BoolVar(&runServer, "runServer", false, "Run web server or just print repositories")
-	flag.StringVar(&port, "port", "8080", "Port to listen from")
-	flag.StringVar(&excludeRegexpString, "excludeRegexp", "", "Exlude paths from being listed")
-	flag.StringVar(&sslCertFile, "certFile", "", "SSL Certificate path")
-	flag.StringVar(&sslKeyFile, "keyFile", "", "SSL Key path")
-	flag.StringVar(&ldapURL, "ldapUrl", "", "LDAP URL (i.e. ldap.example.com:321)")
-	flag.StringVar(&ldapDomain, "ldapDomain", "", "LDAP domain (i.e. example.com)")
-	flag.StringVar(&cookieSecret, "cookieSecret", "", "Secret key to authenticate sessions")
+	flag.StringVar(&configFile, "config", "config.json", "JSON formatted configuration file")
 	flag.Parse()
 
-	if re, err := regexp.Compile(excludeRegexpString); err != nil {
-		println("Regexp error")
+	conf_contents, e := ioutil.ReadFile(configFile)
+	if e != nil {
+		fmt.Printf("File error: %v\n", e)
+		os.Exit(1)
+	}
+	json.Unmarshal(conf_contents, &config)
+
+	if re, err := regexp.Compile(config.Exclude); err != nil {
+		fmt.Println("Regexp error")
 		os.Exit(1)
 	} else {
 		excludeRegexp = re
 	}
 
-	if flag.NArg() < 1 {
-		flag.Usage()
-		os.Exit(1)
-	}
-	if path, err := filepath.Abs(flag.Arg(0)); err == nil {
-		BaseGitDir = path
-	} else {
-		BaseGitDir = flag.Arg(0)
-	}
-
-	if runServer {
+	if config.Server {
 		http.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("./static"))))
 		http.HandleFunc("/r/", handleRepository)
 		http.HandleFunc("/repositories/", handleAPIRepositories)
@@ -351,14 +353,15 @@ func main() {
 		http.HandleFunc("/heads/", handleAPIHeads)
 		http.HandleFunc("/show/", handleAPIShow)
 		http.HandleFunc("/tip/", handleAPIRepositoryTip)
-		http.HandleFunc("/login/", handleLDAPLogin)
+		if enableAuthentication() {
+			http.HandleFunc("/login/", handleLDAPLogin)
+			cookieStore = sessions.NewCookieStore([]byte(config.Cookie_secret))
+		}
 
-		store = sessions.NewCookieStore([]byte(cookieSecret))
-
-		if sslCertFile != "" && sslKeyFile != "" {
-			http.ListenAndServeTLS(":"+port, sslCertFile, sslKeyFile, nil)
+		if config.SslCertFile != "" && config.SslKeyFile != "" {
+			http.ListenAndServeTLS(":"+config.Port, config.SslCertFile, config.SslKeyFile, nil)
 		} else {
-			http.ListenAndServe(":"+port, nil)
+			http.ListenAndServe(":"+config.Port, nil)
 		}
 	} else {
 		printRepositories()
