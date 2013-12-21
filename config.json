@@ -7,6 +7,7 @@
     "SslKeyFile": "",
     "Ldap_url": "auth.ldap.example.com:389",
     "Ldap_domain": "ldap.example.com",
+    "Ldap_basedn": "CN=users,OU=Groups,OU=example,DC=ad,DC=company,DC=com",
     "Cookie_secret": "secret string",
     "Gitwebserver_name": "gitweb.example.com"
 }
