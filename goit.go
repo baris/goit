@@ -32,15 +32,16 @@ var configFile string
 var config Config
 
 type Config struct {
-	Git_dir string
-	Server bool
-	Port string
-	Exclude string
-	SslCertFile string
-	SslKeyFile string
-	Ldap_url string
-	Ldap_domain string
-	Cookie_secret string
+	Git_dir           string
+	Server            bool
+	Port              string
+	Exclude           string
+	SslCertFile       string
+	SslKeyFile        string
+	Ldap_url          string
+	Ldap_domain       string
+	Ldap_basedn       string
+	Cookie_secret     string
 	Gitwebserver_name string
 }
 
@@ -152,6 +153,7 @@ func handleAPIRepositories(w http.ResponseWriter, r *http.Request) {
 	for _, path := range pathList {
 		stringPathList = append(stringPathList, path.Json())
 	}
+
 	fmt.Fprintf(w, "[\n")
 	fmt.Fprintf(w, strings.Join(stringPathList, ",\n"))
 	fmt.Fprintf(w, "\n]\n")
@@ -308,11 +310,17 @@ func handleLDAPLogin(w http.ResponseWriter, r *http.Request) {
 	if l, err := ldap.Dial("tcp", config.Ldap_url); err == nil {
 		defer l.Close()
 		if err := l.Bind(username+"@"+config.Ldap_domain, password); err == nil {
-			session, _ := cookieStore.Get(r, "goit")
-			session.Values["login"] = username
-			session.Save(r, w)
-			http.Redirect(w, r, "/index.html", 302)
-			return
+			searchRequest := ldap.NewSearchRequest(
+				config.Ldap_basedn, ldap.ScopeBaseObject,
+				0, 0, 0, false, "("+config.Ldap_basedn+")", nil, nil,
+			)
+			if _, err := l.Search(searchRequest); err == nil {
+				session, _ := cookieStore.Get(r, "goit")
+				session.Values["login"] = username
+				session.Save(r, w)
+				http.Redirect(w, r, "/index.html", 302)
+				return
+			}
 		}
 	}
 	http.Redirect(w, r, "/login.html", 302)
