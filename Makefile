@@ -1,8 +1,10 @@
-all: goit
+PROG=goit
+SOURCES=src/goit/git.go src/goit/goit.go src/goit/util.go
 
-goit: git.go goit.go util.go
-	GOPATH=$(shell pwd) go build -o goit
+all: $(PROG)
 
-.PHONY: clean
-clean:
-	rm -f goit
+deps:
+	GOPATH=$(shell pwd) go get $(PROG)
+
+$(PROG): $(SOURCES) deps
+	GOPATH=$(shell pwd) go build $@
