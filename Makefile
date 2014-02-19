@@ -8,3 +8,7 @@ deps:
 
 $(PROG): $(SOURCES) deps
 	GOPATH=$(shell pwd) go build $@
+
+test: tests
+tests: deps
+	GOPATH=$(shell pwd) go test $(PROG)
