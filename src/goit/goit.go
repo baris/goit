@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -32,7 +33,8 @@ var configFile string
 var config Config
 
 type Config struct {
-	Git_dir           string
+	Git_base_dir      string
+	Git_projects_file string
 	Server            bool
 	Port              string
 	Exclude           string
@@ -112,10 +114,29 @@ func walk(path string, controlChannel chan bool) {
 	controlChannel <- true
 }
 
-func findRepositories() {
+func loadRepositoriesFromGitPath() {
 	controlChannel := make(chan bool)
-	go walk(config.Git_dir, controlChannel)
+	go walk(config.Git_base_dir, controlChannel)
 	<-controlChannel // wait for walkers
+}
+
+func loadRepositoriesFromProjectsFile() {
+	for line := range readLines(config.Git_projects_file) {
+		path := strings.Split(line, " ")[0]
+		if repo, ok := NewRepo(path); ok {
+			addRepository(repo)
+		}
+	}
+}
+
+func findRepositories() {
+	if config.Git_projects_file != "" {
+		loadRepositoriesFromProjectsFile()
+	} else if config.Git_base_dir != "" {
+		loadRepositoriesFromGitPath()
+	} else {
+		log.Fatal("Missing configuration Git_base_dir or Git_projects_file is required")
+	}
 }
 
 func sortedRepositories() GitRepos {
@@ -166,7 +187,7 @@ func handleAPIRepository(w http.ResponseWriter, r *http.Request) {
 	}
 
 	repository := strings.SplitN(r.URL.Path, "/", 3)[2]
-	path := filepath.Join(config.Git_dir, repository)
+	path := filepath.Join(config.Git_base_dir, repository)
 	if isExcluded(path) {
 		fmt.Fprintf(w, JSONAPIError)
 		return
@@ -199,7 +220,7 @@ func handleAPIRepositoryTip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := filepath.Join(config.Git_dir, repository)
+	path := filepath.Join(config.Git_base_dir, repository)
 	if repo, ok := NewRepo(path); ok {
 		if tip, ok := repo.LastCommit(); ok {
 			fmt.Fprintf(w, "["+repo.Json()+","+tip.Json()+"]")
@@ -226,7 +247,7 @@ func handleAPIShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := filepath.Join(config.Git_dir, repository)
+	path := filepath.Join(config.Git_base_dir, repository)
 	if repo, ok := NewRepo(path); ok {
 		if b, err := json.Marshal(repo.Show(sha)); err == nil {
 			fmt.Fprintf(w, string(b))
@@ -245,7 +266,7 @@ func handleAPIHeads(w http.ResponseWriter, r *http.Request) {
 	parts := strings.SplitN(r.URL.Path, "/", 3)
 	repository := parts[2]
 
-	path := filepath.Join(config.Git_dir, repository)
+	path := filepath.Join(config.Git_base_dir, repository)
 	if repo, ok := NewRepo(path); ok {
 		if b, err := json.Marshal(repo.Heads()); err == nil {
 			fmt.Fprintf(w, "["+repo.Json()+",")
@@ -282,7 +303,7 @@ func handleAPICommits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := filepath.Join(config.Git_dir, repository)
+	path := filepath.Join(config.Git_base_dir, repository)
 	if repo, ok := NewRepo(path); ok {
 		infos, ok := repo.LastCommitsN(numCommits)
 		if ok != true {

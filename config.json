@@ -1,5 +1,6 @@
 {
-    "Git_dir": "/path/to/git/",
+    "Git_base_dir": "/path/to/git/",
+    "Git_projects_file": "/path/to/projects.list",
     "Server": true,
     "Port": "8888",
     "Exclude": ".*abc.*",

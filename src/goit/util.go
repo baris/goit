@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,4 +40,22 @@ func toCSSName(path string) string {
 		".",
 		"_",
 		-1)
+}
+
+// This is a generator that reads lines from a file
+func readLines(path string) chan string {
+	ch := make(chan string)
+	go func() {
+		inputFile, err := os.Open(config.Git_projects_file)
+		if err != nil {
+			log.Println("Failed to read the projects file")
+			return
+		}
+		scanner := bufio.NewScanner(inputFile)
+		for scanner.Scan() {
+			ch <- scanner.Text()
+		}
+		close(ch)
+	}()
+	return ch
 }
